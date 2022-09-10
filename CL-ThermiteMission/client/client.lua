@@ -31,31 +31,38 @@ Citizen.CreateThread(function()
    	end	
 end)
 
-Citizen.CreateThread(function()
-    for k, v in pairs(Config.StartPeds['peds']) do
-        loadModel(v['ped'])
-        StartPeds[k] = CreatePed(4, GetHashKey(v['ped']), v['pos']['x'], v['pos']['y'], v['pos']['z'] - 0.95, v['heading'], false, true)
-        TaskStartScenarioInPlace(StartPeds[k], 'WORLD_HUMAN_CLIPBOARD', 0, false)
-        FreezeEntityPosition(StartPeds[k], true)
-        SetEntityInvincible(StartPeds[k], true)
-        SetBlockingOfNonTemporaryEvents(StartPeds[k], true)
-    end
-end)
-
-Citizen.CreateThread(function()
-    while true do
-        local Ped = PlayerPedId()
-        local pedCo = GetEntityCoords(Ped)
-        local letSleep = 1000
-        local Distance = #(pedCo - vector3(-604.0787, -773.9486, 25.403778))
-        if Distance <= 2.0 then
-            letSleep = 1
-            ShowHelpText('Press ~INPUT_PICKUP~ To Start The Thermite Mission')
-            if IsControlJustPressed(0, 38) then
-                StartMission()
-            end
+CreateThread(function()
+    for k, v in pairs(Config.StartPeds) do
+        RequestModel(GetHashKey(v.Ped))
+        while not HasModelLoaded(GetHashKey(v.Ped)) do
+            Wait(1)
         end
-        Citizen.Wait(letSleep)
+        StartPed = CreatePed(0, v.Ped, v.Coords['PedCoords'].x,v.Coords['PedCoords'].y, v.Coords['PedCoords'].z, v.Coords['Heading'], false, true)
+        SetEntityInvincible(StartPed, true)
+        SetBlockingOfNonTemporaryEvents(StartPed, true)
+        TaskStartScenarioInPlace(StartPed, v.Scenario, 0, true) 
+        FreezeEntityPosition(StartPed, true)
+
+        exports['qb-target']:AddEntityZone("Paige"..k, StartPed, {
+            name = "Paige"..k,
+        }, {
+          options = {
+            { 
+                icon = v.Icon,
+                label = v.Label,
+                action = function()
+                    StartMission()
+                end,
+                canInteract = function(StartPed)
+                    if IsPedAPlayer(StartPed) then 
+                        return false 
+                    end 
+                    return true
+                end,
+            }
+          },
+          distance = v.Coords['Distance'],
+        })
     end
 end)
 
@@ -68,8 +75,6 @@ function StartMission()
             TriggerServerEvent("CL-ThermiteMission:server:SetActive", true)
             TriggerServerEvent("CL-ThermiteMission:SendDiscordLog")
             SendEmail()
-            Wait(5000)
-            TriggerServerEvent('police:server:policeAlert', 'Attempted Thermite Robbery')
         else
             local minutes = math.floor(StartCoolDownRemaining / 60)
             local seconds = StartCoolDownRemaining - minutes * 60
@@ -191,6 +196,7 @@ function MissionBlip()
             Citizen.Wait(7)
             if InMilitaryPoint == true then
                 RemoveBlip(Mblip)
+                TriggerServerEvent('police:server:policeAlert', 'Attempted Thermite Robbery')
                 break
             end
         end
@@ -227,46 +233,31 @@ function SpawnGuards()
     AddRelationshipGroup('GuardPeds')
 
     for k, v in pairs(Config.Guards) do
-        loadModel(v['ped'])
-        Config.Guards[k] = CreatePed(26, GetHashKey(v['ped']), v['pos'], true, true)
-        NetworkRegisterEntityAsNetworked(Config.Guards[k])
-        networkID = NetworkGetNetworkIdFromEntity(Config.Guards[k])
+        RequestModel(GetHashKey(v.Ped))
+        while not HasModelLoaded(GetHashKey(v.Ped)) do
+            Wait(1)
+        end
+        Guards = CreatePed(0, GetHashKey(v.Ped), v.Coords, true, true)
+        NetworkRegisterEntityAsNetworked(Guards)
+        networkID = NetworkGetNetworkIdFromEntity(Guards)
         SetNetworkIdCanMigrate(networkID, true)
-        GiveWeaponToPed(Config.Guards[k], GetHashKey(v['weapon']), 255, false, false) 
+        GiveWeaponToPed(Guards, GetHashKey(v.Weapon), 255, false, false) 
         SetNetworkIdExistsOnAllMachines(networkID, true)
-        SetEntityAsMissionEntity(Config.Guards[k])
-        SetPedDropsWeaponsWhenDead(Config.Guards[k], false)
-        SetPedRelationshipGroupHash(Config.Guards[k], GetHashKey("GuardPeds"))
-        SetEntityVisible(Config.Guards[k], true)
-        SetPedRandomComponentVariation(Config.Guards[k], 0)
-        SetPedRandomProps(Config.Guards[k])
-        SetPedCombatMovement(Config.Guards[k], v['aggresiveness'])
-        SetPedAlertness(Config.Guards[k], v['alertness'])
-        SetPedAccuracy(Config.Guards[k], v['accuracy'])
-        SetPedMaxHealth(Config.Guards[k], v['health'])
+        SetEntityAsMissionEntity(Guards)
+        SetPedDropsWeaponsWhenDead(Guards, false)
+        SetPedRelationshipGroupHash(Guards, GetHashKey("GuardPeds"))
+        SetEntityVisible(Guards, true)
+        SetPedRandomComponentVariation(Guards, 0)
+        SetPedRandomProps(Guards)
+        SetPedCombatMovement(Guards, v.Aggresiveness)
+        SetPedAlertness(Guards, v.Alertness)
+        SetPedAccuracy(Guards, v.Accuracy)
+        SetPedMaxHealth(Guards, v.Health)
     end
 
     SetRelationshipBetweenGroups(0, GetHashKey("GuardPeds"), GetHashKey("GuardPeds"))
 	SetRelationshipBetweenGroups(5, GetHashKey("GuardPeds"), GetHashKey("PLAYER"))
 	SetRelationshipBetweenGroups(5, GetHashKey("PLAYER"), GetHashKey("GuardPeds"))
-end
-
-function ShowHelpText(text)
-    SetTextComponentFormat("STRING")
-    AddTextComponentString(text)
-    DisplayHelpTextFromStringLabel(0, 0, 1, 50)
-end
-
-function loadModel(model)
-    if type(model) == 'number' then
-        model = model
-    else
-        model = GetHashKey(model)
-    end
-    while not HasModelLoaded(model) do
-        RequestModel(model)
-        Citizen.Wait(0)
-    end
 end
 
 AddEventHandler('onResourceStop', function (resource)
