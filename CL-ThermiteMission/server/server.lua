@@ -23,10 +23,6 @@ function DiscordLog(message)
     PerformHttpRequest(Config.WebHook, function(err, text, headers) end, 'POST', json.encode({username = 'CL-ThermiteMission', embeds = embed, avatar_url = Config.LogsImage}), { ['Content-Type'] = 'application/json' })
 end
 
-RegisterServerEvent("CL-ThermiteMission:Server:GuardsSync", function() 
-    TriggerClientEvent("CL-ThermiteMission:GuardsSync", -1)
-end) 
-
 RegisterNetEvent('CL-ThermiteMission:server:SetActive', function(status)
     if status ~= nil then
         isActive = status

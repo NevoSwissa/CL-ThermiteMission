@@ -138,8 +138,8 @@ function CheckCoords()
             local Distance = GetDistanceBetweenCoords(PlayerCoords, -2133.433, 3261.0524, 32.81026, true) 
             if Distance < 60.0 then
                 InMilitaryPoint = true
-                TriggerServerEvent("CL-ThermiteMission:Server:GuardsSync", -1)
                 TriggerEvent("CL-ThermiteMission:SpawnTruck")
+                SpawnGuards()
                 QBCore.Functions.Notify("Kill The Guards !")
                 break
             end
@@ -223,9 +223,6 @@ function BuyerBlip()
     end)
 end
 
-RegisterNetEvent('CL-ThermiteMission:GuardsSync', function()
-    SpawnGuards()
-end)
 
 function SpawnGuards()
     local ped = PlayerPedId()
